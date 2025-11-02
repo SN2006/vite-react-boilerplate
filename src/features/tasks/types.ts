@@ -25,3 +25,12 @@ export interface GetMyTaskResponse {
 	message: string;
 	data: Task[];
 }
+
+export interface TaskRequest {
+	title: string;
+	description: string;
+	priority: "LOW" | "MEDIUM" | "HIGH";
+	stateId: number;
+	taskTypeId: number;
+	dueDate: string;
+}

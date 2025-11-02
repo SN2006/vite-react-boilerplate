@@ -1,19 +1,22 @@
 import type { FunctionComponent } from "../common/types";
-import { useMyTasks } from "../features/tasks/api";
+import { useMyTasks, useCreateTask, useUpdateTask, useDeleteTask } from "../features/tasks/api";
 import { useMyStates, useCreateState, useUpdateState, useDeleteState } from "../features/states/api";
+import { useMyTaskTypes } from "../features/taskTypes/api";
 import { Task } from "../features/tasks/types";
 import { State } from "../features/states/types";
 import { useAuthStore } from "../store/authStore";
 import { useNavigate } from "@tanstack/react-router";
-import {
-	DeleteStateModal,
-	StateModal,
-} from "../components/states/DeleteStateModal";
+import { StateModal } from "../components/states/StateModal";
+import { DeleteStateModal } from "../components/states/DeleteStateModal";
+import { TaskModal, TaskFormData } from "../components/tasks/TaskModal";
+import { TaskDetailModal } from "../components/tasks/TaskDetailModal";
+import { DeleteTaskModal } from "../components/tasks/DeleteTaskModal";
 import { useState } from "react";
 
 export const Dashboard = (): FunctionComponent => {
 	const { data: tasks, isLoading: tasksLoading, isError: tasksError } = useMyTasks();
 	const { data: states, isLoading: statesLoading, isError: statesError } = useMyStates();
+	const { data: taskTypes, isLoading: taskTypesLoading } = useMyTaskTypes();
 	const clearToken = useAuthStore((state) => state.clearToken);
 	const navigate = useNavigate();
 
@@ -22,10 +25,21 @@ export const Dashboard = (): FunctionComponent => {
 	const updateStateMutation = useUpdateState();
 	const deleteStateMutation = useDeleteState();
 
-	// Modal states
-	const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+	// Task management mutations
+	const createTaskMutation = useCreateTask();
+	const updateTaskMutation = useUpdateTask();
+	const deleteTaskMutation = useDeleteTask();
+
+	// Modal states for States
+	const [isCreateStateModalOpen, setIsCreateStateModalOpen] = useState(false);
 	const [editingState, setEditingState] = useState<State | null>(null);
 	const [deletingState, setDeletingState] = useState<State | null>(null);
+
+	// Modal states for Tasks
+	const [isCreateTaskModalOpen, setIsCreateTaskModalOpen] = useState(false);
+	const [viewingTask, setViewingTask] = useState<Task | null>(null);
+	const [editingTask, setEditingTask] = useState<Task | null>(null);
+	const [deletingTask, setDeletingTask] = useState<Task | null>(null);
 
 	const handleLogout = () => {
 		clearToken();
@@ -35,7 +49,7 @@ export const Dashboard = (): FunctionComponent => {
 	const handleCreateState = (name: string) => {
 		createStateMutation.mutate(name, {
 			onSuccess: () => {
-				setIsCreateModalOpen(false);
+				setIsCreateStateModalOpen(false);
 			},
 		});
 	};
@@ -63,7 +77,58 @@ export const Dashboard = (): FunctionComponent => {
 		}
 	};
 
-	if (tasksLoading || statesLoading) {
+	// Task handlers
+	const handleCreateTask = (data: TaskFormData) => {
+		createTaskMutation.mutate(data, {
+			onSuccess: () => {
+				setIsCreateTaskModalOpen(false);
+			},
+		});
+	};
+
+	const handleUpdateTask = (data: TaskFormData) => {
+		if (editingTask) {
+			updateTaskMutation.mutate(
+				{ id: editingTask.id, task: data },
+				{
+					onSuccess: () => {
+						setEditingTask(null);
+					},
+				}
+			);
+		}
+	};
+
+	const handleDeleteTask = () => {
+		if (deletingTask) {
+			deleteTaskMutation.mutate(deletingTask.id, {
+				onSuccess: () => {
+					setDeletingTask(null);
+					setViewingTask(null);
+				},
+			});
+		}
+	};
+
+	const handleViewTask = (task: Task) => {
+		setViewingTask(task);
+	};
+
+	const handleEditFromDetail = () => {
+		if (viewingTask) {
+			setEditingTask(viewingTask);
+			setViewingTask(null);
+		}
+	};
+
+	const handleDeleteFromDetail = () => {
+		if (viewingTask) {
+			setDeletingTask(viewingTask);
+			setViewingTask(null);
+		}
+	};
+
+	if (tasksLoading || statesLoading || taskTypesLoading) {
 		return (
 			<div className="min-h-screen flex items-center justify-center bg-gray-50">
 				<div className="text-center">
@@ -154,7 +219,26 @@ export const Dashboard = (): FunctionComponent => {
 							Task Types
 						</button>
 						<button
-							onClick={() => setIsCreateModalOpen(true)}
+							onClick={() => setIsCreateTaskModalOpen(true)}
+							className="px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-md hover:bg-green-700 transition-colors flex items-center gap-2"
+						>
+							<svg
+								className="w-4 h-4"
+								fill="none"
+								stroke="currentColor"
+								viewBox="0 0 24 24"
+							>
+								<path
+									strokeLinecap="round"
+									strokeLinejoin="round"
+									strokeWidth={2}
+									d="M12 4v16m8-8H4"
+								/>
+							</svg>
+							Add Task
+						</button>
+						<button
+							onClick={() => setIsCreateStateModalOpen(true)}
 							className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 transition-colors flex items-center gap-2"
 						>
 							<svg
@@ -256,6 +340,7 @@ export const Dashboard = (): FunctionComponent => {
 										stateTasks.map((task) => (
 											<div
 												key={task.id}
+												onClick={() => handleViewTask(task)}
 												className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 hover:shadow-md transition-shadow cursor-pointer"
 											>
 												{/* Task Title */}
@@ -354,10 +439,10 @@ export const Dashboard = (): FunctionComponent => {
 				)}
 			</div>
 
-			{/* Modals */}
+			{/* Modals - States */}
 			<StateModal
-				isOpen={isCreateModalOpen}
-				onClose={() => setIsCreateModalOpen(false)}
+				isOpen={isCreateStateModalOpen}
+				onClose={() => setIsCreateStateModalOpen(false)}
 				onSubmit={handleCreateState}
 				title="Create New State"
 				isLoading={createStateMutation.isPending}
@@ -378,6 +463,44 @@ export const Dashboard = (): FunctionComponent => {
 				onConfirm={handleDeleteState}
 				stateName={deletingState?.name || ""}
 				isLoading={deleteStateMutation.isPending}
+			/>
+
+			{/* Modals - Tasks */}
+			<TaskModal
+				isOpen={isCreateTaskModalOpen}
+				onClose={() => setIsCreateTaskModalOpen(false)}
+				onSubmit={handleCreateTask}
+				title="Create New Task"
+				isLoading={createTaskMutation.isPending}
+				states={states || []}
+				taskTypes={taskTypes || []}
+			/>
+
+			<TaskModal
+				isOpen={editingTask !== null}
+				onClose={() => setEditingTask(null)}
+				onSubmit={handleUpdateTask}
+				title="Edit Task"
+				initialValue={editingTask || undefined}
+				isLoading={updateTaskMutation.isPending}
+				states={states || []}
+				taskTypes={taskTypes || []}
+			/>
+
+			<TaskDetailModal
+				isOpen={viewingTask !== null}
+				onClose={() => setViewingTask(null)}
+				onEdit={handleEditFromDetail}
+				onDelete={handleDeleteFromDetail}
+				task={viewingTask}
+			/>
+
+			<DeleteTaskModal
+				isOpen={deletingTask !== null}
+				onClose={() => setDeletingTask(null)}
+				onConfirm={handleDeleteTask}
+				taskTitle={deletingTask?.title || ""}
+				isLoading={deleteTaskMutation.isPending}
 			/>
 		</div>
 	);
