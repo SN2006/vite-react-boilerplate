@@ -1,26 +1,33 @@
-import { useTranslation } from "react-i18next";
 import type { FunctionComponent } from "../common/types";
+import { useNavigate } from "@tanstack/react-router";
+import { useAuthStore } from "../store/authStore";
+import { useEffect } from "react";
 
 export const Home = (): FunctionComponent => {
-	const { t, i18n } = useTranslation();
+	const navigate = useNavigate();
+	const token = useAuthStore((state) => state.token);
 
-	const onTranslateButtonClick = async (): Promise<void> => {
-		if (i18n.resolvedLanguage === "en") {
-			await i18n.changeLanguage("es");
-		} else {
-			await i18n.changeLanguage("en");
+	useEffect(() => {
+		if (token) {
+			navigate({ to: "/dashboard" });
 		}
+	}, [token, navigate]);
+
+	const onLoginClick = () => {
+		navigate({ to: "/login" });
 	};
 
 	return (
-		<div className="bg-blue-300 font-bold w-screen h-screen flex flex-col justify-center items-center">
-			<p className="text-white text-6xl">{t("home.greeting")}</p>
+		<div className="bg-gradient-to-br from-blue-500 to-blue-700 w-screen h-screen flex flex-col justify-center items-center gap-6">
+			<div className="text-center">
+				<h1 className="font-serif text-5xl text-white mb-2">Task Manager</h1>
+				<p className="text-blue-100 text-lg">Manage your tasks efficiently</p>
+			</div>
 			<button
-				className="hover:cursor-pointer"
-				type="submit"
-				onClick={onTranslateButtonClick}
+				className="bg-white text-blue-600 font-bold py-3 px-8 rounded-lg shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-200"
+				onClick={onLoginClick}
 			>
-				translate
+				Get Started
 			</button>
 		</div>
 	);
