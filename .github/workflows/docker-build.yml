@@ -32,4 +32,4 @@ jobs:
         with:
           context: .
           push: true
-          tags: ghcr.io/${{ github.actor }}/${{ github.event.repository.name }}:latest
+          tags: ghcr.io/${{ github.actor | toLower }}/${{ github.event.repository.name | toLower }}:latest
