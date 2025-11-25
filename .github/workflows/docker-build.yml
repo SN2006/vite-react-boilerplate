@@ -33,3 +33,16 @@ jobs:
           context: .
           push: true
           tags: ghcr.io/sn2006/${{ github.event.repository.name }}:latest
+  deploy:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+      - name: Deploy to Azure Web App
+        uses: azure/webapps-deploy@v2
+        with:
+          app-name: my-jira
+          images: ghcr.io/sn2006/${{ github.event.repository.name }}:latest
